@@ -4,10 +4,14 @@ from torchvision import models, transforms
 from PIL import Image
 import io
 from pathlib import Path
+import asyncio
 
 if torch.backends.mps.is_available():
     device = torch.device("mps")
     print("Pytorch: Apple MPS (GPU) is ussed.")
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+    print("Pytorch: CUDA (GPU) is ussed.")
 else:
     device = torch.device("cpu")
     print("Pytorch: CPU is ussed.")
@@ -41,16 +45,21 @@ transform = transforms.Compose([
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
 
-def predict_image(image_bytes: bytes):
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    tensor = transform(image).unsqueeze(0).to(device)
+def _sync_predict(image_bytes: bytes):
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        image.verify() 
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        raise ValueError("Geçersiz veya bozuk görsel dosyası.")
 
+    tensor = transform(image).unsqueeze(0).to(device)
     with torch.no_grad():
         outputs = model(tensor)
         probabilities = torch.nn.functional.softmax(outputs[0], dim=0)
         confidence, predicted_idx = torch.max(probabilities, 0)
+        
+    return class_names[predicted_idx.item()], round(confidence.item(), 4)
 
-    predicted_class = class_names[predicted_idx.item()]
-    conf_score = confidence.item()
-
-    return predicted_class, round(conf_score, 4)
+async def predict_image_async(image_bytes: bytes):
+    return await asyncio.to_thread(_sync_predict, image_bytes)
