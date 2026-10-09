@@ -1,0 +1,25 @@
+[project]
+name = "screenshot-organizer-backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "busraknya", email = "busrakonya5@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi>=0.143.0",
+    "pillow>=12.3.0",
+    "pydantic>=2.14.0",
+    "python-multipart>=0.0.32",
+    "torch>=2.14.1",
+    "torchvision>=0.29.1",
+    "uvicorn[standard]>=0.54.0",
+]
+
+[project.scripts]
+screenshot-organizer-backend = "screenshot_organizer_backend:main"
+
+[build-system]
+requires = ["uv_build>=0.12.24,<0.13.0"]
+build-backend = "uv_build"
