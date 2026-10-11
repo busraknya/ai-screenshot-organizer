@@ -14,6 +14,19 @@ logger = logging.getLogger("uvicorn")
 # Rate Limiter (IP başına dakikada maksimum 20 tahmin isteği - DoS ve maliyet koruması)
 limiter = Limiter(key_func=get_remote_address)
 
+# Colab ile %100 Uyumlu Taxonomy Mapping Sözlüğü
+TAXONOMY_MAP = {
+    "BABY_PRODUCTS": "Shopping & Products",
+    "CLOTHING_ACCESSORIES_JEWELLERY": "Shopping & Products",
+    "BEAUTY_HEALTH": "Shopping & Products",
+    "GROCERY": "Shopping & Products",
+    "PET_SUPPLIES": "Shopping & Products",
+    "SPORTS_OUTDOOR": "Shopping & Products",
+    "HOME_KITCHEN_TOOLS": "Home & Living",
+    "ELECTRONICS": "Tech & Electronics",
+    "HOBBY_ARTS_STATIONERY": "Work & Stationery"
+}
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Uygulama ayağa kalkarken modeli yükle (Singleton Pattern)
@@ -26,8 +39,8 @@ async def lifespan(app: FastAPI):
     logger.info("FastAPI sunucusu kapatılıyor...")
 
 app = FastAPI(
-    title="AI Screenshot Organizer API (v1 - Optimized)",
-    version="1.0.0",
+    title="AI Screenshot Organizer API (v1 - Optimized & Mapped)",
+    version="1.1.0",
     lifespan=lifespan
 )
 
@@ -35,7 +48,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS Ayarları (Geliştirme için açık, canlıda spesifik domain verilmelidir)
+# CORS Ayarları
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -48,12 +61,13 @@ app.add_middleware(
 def read_root():
     return {
         "status": "online",
-        "version": "1.0.0",
-        "security": "Optimized & Rate-Limited"
+        "version": "1.1.0",
+        "security": "Optimized & Rate-Limited",
+        "mapping": "Enabled"
     }
 
 @app.post("/api/v1/predict")
-@limiter.limit("20/minute") # Güvenlik: Kötüye kullanım ve spam koruması
+@limiter.limit("20/minute")
 async def predict_screenshot(request: Request, file: UploadFile = File(...)):
     # 1. Uzantı / İçerik Türü Güvenlik Kontrolü
     if not file.content_type or not file.content_type.startswith("image/"):
@@ -70,19 +84,22 @@ async def predict_screenshot(request: Request, file: UploadFile = File(...)):
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Yüklenen dosya boş.")
             
-        # Asenkron ve güvenli model çıkarımı
-        predicted_class, confidence = await predict_image_async(contents)
+        # Asenkron ve güvenli ham model çıkarımı
+        raw_class, confidence = await predict_image_async(contents)
         
-        logger.info(f"Başarılı tahmin -> Dosya: {file.filename} | Kategori: {predicted_class} | Güven: {confidence}")
+        # Taxonomy Mapping (Ham tahmini üst kategoriye dönüştürme)
+        mapped_folder = TAXONOMY_MAP.get(raw_class, "General / Archive")
+        
+        logger.info(f"Başarılı tahmin -> Dosya: {file.filename} | Ham: {raw_class} | Klasör: {mapped_folder} | Güven: {confidence}")
         
         return {
             "filename": file.filename,
-            "predicted_category": predicted_class,
+            "raw_prediction": raw_class,          # Modelin ham e-ticaret sınıfı
+            "predicted_category": mapped_folder,     # Kullanıcının göreceği üst klasör (Mapping)
             "confidence": confidence
         }
         
     except ValueError as ve:
-        # model.py içindeki Image.verify hatası yakalanır
         raise HTTPException(status_code=422, detail=str(ve))
     except HTTPException as he:
         raise he
