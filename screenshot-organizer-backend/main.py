@@ -8,10 +8,10 @@ import logging
 
 from model import load_inference_model, predict_image_async
 
-# Loglama ayarı
+# Set up logging
 logger = logging.getLogger("uvicorn")
 
-# Rate Limiter (IP başına dakikada maksimum 20 tahmin isteği - DoS ve maliyet koruması)
+# Rate Limiter (IP 20 REQUESTS / MINUTE)
 limiter = Limiter(key_func=get_remote_address)
 
 # Colab ile %100 Uyumlu Taxonomy Mapping Sözlüğü
@@ -29,7 +29,7 @@ TAXONOMY_MAP = {
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Uygulama ayağa kalkarken modeli yükle (Singleton Pattern)
+    #  (Singleton Pattern)
     try:
         load_inference_model()
     except Exception as e:
@@ -44,11 +44,11 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# Rate limiter uygulamaya bağlanıyor
+# Rate limiter is connected to the app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-# CORS Ayarları
+# CORS Settings
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -69,7 +69,7 @@ def read_root():
 @app.post("/api/v1/predict")
 @limiter.limit("20/minute")
 async def predict_screenshot(request: Request, file: UploadFile = File(...)):
-    # 1. Uzantı / İçerik Türü Güvenlik Kontrolü
+    # Extension and MIME type validation
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(
             status_code=400, 
@@ -77,25 +77,25 @@ async def predict_screenshot(request: Request, file: UploadFile = File(...)):
         )
     
     try:
-        # Dosya içeriğini oku
+        # Read the uploaded file asynchronously
         contents = await file.read()
         
-        # Boş dosya kontrolü
+        # Check if the file is empty
         if len(contents) == 0:
             raise HTTPException(status_code=400, detail="Yüklenen dosya boş.")
             
-        # Asenkron ve güvenli ham model çıkarımı
+        # Predict the image class and confidence using the preloaded model
         raw_class, confidence = await predict_image_async(contents)
         
-        # Taxonomy Mapping (Ham tahmini üst kategoriye dönüştürme)
+        # Taxonomy Mapping
         mapped_folder = TAXONOMY_MAP.get(raw_class, "General / Archive")
         
         logger.info(f"Başarılı tahmin -> Dosya: {file.filename} | Ham: {raw_class} | Klasör: {mapped_folder} | Güven: {confidence}")
         
         return {
             "filename": file.filename,
-            "raw_prediction": raw_class,          # Modelin ham e-ticaret sınıfı
-            "predicted_category": mapped_folder,     # Kullanıcının göreceği üst klasör (Mapping)
+            "raw_prediction": raw_class,          
+            "predicted_category": mapped_folder,     
             "confidence": confidence
         }
         
@@ -104,8 +104,8 @@ async def predict_screenshot(request: Request, file: UploadFile = File(...)):
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Beklenmeyen sunucu hatası: {str(e)}")
+        logger.error(f"Unexpected server error: {str(e)}")
         raise HTTPException(
             status_code=500, 
-            detail="Görsel işlenirken sunucu tarafında beklenmeyen bir hata oluştu."
+            detail="An unexpected error occurred on the server side while processing the image."
         )

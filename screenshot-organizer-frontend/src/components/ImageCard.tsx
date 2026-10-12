@@ -9,22 +9,24 @@ interface ImageCardProps {
 }
 
 export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderChange }) => {
+  // State for delete confirmation and folder update
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedFolder, setSelectedFolder] = useState(item.userFolder);
   const [isModified, setIsModified] = useState(false);
 
-  // Klasör seçimi değiştiğinde geçici state'e al ve Apply butonunu göster
+  // Handle select dropdown change and show apply button if changed
   const handleSelectChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedFolder(e.target.value);
     setIsModified(e.target.value !== item.userFolder);
   };
 
-  // Onaylandığında ana state'e (Dashboard) bildir
+  // Save the new folder choice
   const handleApplyChange = () => {
     onFolderChange(item.id, selectedFolder);
     setIsModified(false);
   };
 
+  // Revert back to original folder
   const handleCancelChange = () => {
     setSelectedFolder(item.userFolder);
     setIsModified(false);
@@ -33,6 +35,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderCh
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm flex flex-col justify-between transition-all hover:shadow-md">
       <div>
+        {/* Image Preview & AI Confidence Badge */}
         <div className="h-48 bg-slate-100 overflow-hidden relative flex items-center justify-center">
           <img src={item.imageUrl} alt={item.filename} className="w-full h-full object-cover" />
           <span className="absolute top-3 right-3 bg-black/60 backdrop-blur-md text-white text-xs px-2.5 py-1 rounded-full font-medium shadow-sm">
@@ -41,6 +44,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderCh
         </div>
 
         <div className="p-5">
+          {/* AI Category Tag */}
           <div className="flex justify-between items-start mb-3">
             <span className="text-xs uppercase tracking-wider font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-md border border-indigo-100">
               AI: {item.category}
@@ -50,7 +54,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderCh
             File: {item.filename}
           </p>
 
-          {/* UPDATE İşlemi ve Onay Mekanizması */}
+          {/* Folder Update Section */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-2">
               <span className="text-xs font-semibold text-slate-600">Folder:</span>
@@ -67,7 +71,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderCh
               </select>
             </div>
 
-            {/* Değişiklik yapıldığında beliren Apply / Cancel butonları */}
+            {/* Show Apply/Cancel buttons when folder is modified */}
             {isModified && (
               <div className="flex items-center justify-end gap-1.5 mt-1 animate-fadeIn">
                 <span className="text-[10px] text-amber-600 font-medium">Save changes?</span>
@@ -91,7 +95,7 @@ export const ImageCard: React.FC<ImageCardProps> = ({ item, onDelete, onFolderCh
         </div>
       </div>
 
-      {/* DELETE İşlemi & Onay Modalı */}
+      {/* Delete Confirmation Section */}
       <div className="border-t border-slate-100 px-5 py-3 bg-slate-50/50 flex justify-end">
         {showConfirm ? (
           <div className="flex items-center gap-2 animate-fadeIn">

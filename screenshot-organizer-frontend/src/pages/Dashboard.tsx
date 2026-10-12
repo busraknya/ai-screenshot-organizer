@@ -3,15 +3,16 @@ import axios from 'axios';
 import type { OrganizedItem, ToastMessage } from '../interfaces/item.interface';
 import { UploadBox } from '../components/UploadBox';
 import { ImageCard } from '../components/ImageCard';
-import { Folder, CheckCircle, AlertCircle, Info } from 'lucide-react';
+import { ExportButton } from '../components/ExportButton'; 
+import { Folder, CheckCircle, AlertCircle, Info, Filter } from 'lucide-react';
 
 export const Dashboard: React.FC = () => {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [items, setItems] = useState<OrganizedItem[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [activeFilter, setActiveFilter] = useState<string>('All');
 
   const addToast = (message: string, type: 'success' | 'error' | 'info') => {
     const id = Date.now();
@@ -21,48 +22,48 @@ export const Dashboard: React.FC = () => {
     }, 4000);
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+  const handleFilesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      setSelectedFiles(filesArray);
       setError(null);
     }
   };
 
   const handleUpload = async () => {
-    if (!selectedFile) return;
-
-    const formData = new FormData();
-    formData.append('file', selectedFile);
+    if (selectedFiles.length === 0) return;
 
     setLoading(true);
     setError(null);
 
     try {
-      const response = await axios.post('http://127.0.0.1:8000/api/v1/predict', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+      const uploadPromises = selectedFiles.map(async (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await axios.post('http://127.0.0.1:8000/api/v1/predict', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+        });
+
+        return {
+          id: Date.now() + Math.random(),
+          filename: response.data.filename,
+          imageUrl: URL.createObjectURL(file),
+          category: response.data.predicted_category,
+          confidence: response.data.confidence,
+          userFolder: response.data.predicted_category,
+        } as OrganizedItem;
       });
 
-      const newItem: OrganizedItem = {
-        id: Date.now(),
-        filename: response.data.filename,
-        imageUrl: previewUrl || '',
-        category: response.data.predicted_category,
-        confidence: response.data.confidence,
-        userFolder: response.data.predicted_category,
-      };
+      const newItems = await Promise.all(uploadPromises);
 
-      setItems([newItem, ...items]);
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      addToast('Image successfully uploaded and classified by AI!', 'success');
+      setItems((prev) => [...newItems, ...prev]);
+      setSelectedFiles([]);
+      addToast(`Successfully processed ${newItems.length} images!`, 'success');
     } catch (err) {
       console.error(err);
-      setError('An error occurred during AI analysis. Is the FastAPI backend running?');
-      addToast('Upload failed.', 'error');
+      setError('Batch processing failed. Check backend connection.');
+      addToast('Some uploads failed.', 'error');
     } finally {
       setLoading(false);
     }
@@ -77,8 +78,22 @@ export const Dashboard: React.FC = () => {
     setItems(
       items.map((item) => (item.id === id ? { ...item, userFolder: newFolder } : item))
     );
-    addToast('Image folder updated successfully!', 'success');
+    addToast('Folder updated successfully!', 'success');
   };
+
+  // Filtering
+  const filteredItems = activeFilter === 'All' 
+    ? items 
+    : items.filter(item => item.userFolder === activeFilter);
+
+  const categories = [
+    'All',
+    'Shopping & Products',
+    'Home & Living',
+    'Tech & Electronics',
+    'Work & Stationery',
+    'General / Archive'
+  ];
 
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-8 relative">
@@ -103,27 +118,52 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <UploadBox
-        selectedFile={selectedFile}
-        previewUrl={previewUrl}
+        selectedFiles={selectedFiles}
         loading={loading}
         error={error}
-        onFileChange={handleFileChange}
+        onFilesChange={handleFilesChange}
         onUpload={handleUpload}
-        onCancel={() => { setSelectedFile(null); setPreviewUrl(null); }}
+        onCancel={() => setSelectedFiles([])}
       />
 
-      <div>
-        <h2 className="text-xl font-bold mb-4 flex items-center gap-2 text-slate-800">
-          <Folder className="w-6 h-6 text-indigo-600" /> Organized Images ({items.length})
-        </h2>
+      {/* (Filter Tabs) */}
+      <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-2">
+        <Filter className="w-4 h-4 text-slate-500 shrink-0 ml-1 mr-2" />
+        {categories.map((cat) => (
+          <button
+            key={cat}
+            onClick={() => setActiveFilter(cat)}
+            className={`text-xs px-3.5 py-2 rounded-xl font-medium transition-all whitespace-nowrap shadow-sm ${
+              activeFilter === cat
+                ? 'bg-indigo-600 text-white shadow-indigo-200'
+                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {cat} {cat === 'All' ? `(${items.length})` : `(${items.filter(i => i.userFolder === cat).length})`}
+          </button>
+        ))}
+      </div>
 
-        {items.length === 0 ? (
+      {/* List Sections & Export Button*/}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
+            <Folder className="w-6 h-6 text-indigo-600" /> Organized Images ({filteredItems.length})
+          </h2>
+          
+          {/* Modular Export Button */}
+          <ExportButton items={filteredItems} onToast={addToast} />
+        </div>
+
+        {filteredItems.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 shadow-sm">
-            No images uploaded yet. Upload a screenshot above to start AI organization!
+            {items.length === 0 
+              ? "No images uploaded yet. Upload screenshots above to start AI organization!" 
+              : "No images found in this folder."}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item) => (
+            {filteredItems.map((item) => (
               <ImageCard
                 key={item.id}
                 item={item}
