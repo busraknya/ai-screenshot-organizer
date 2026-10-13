@@ -49,7 +49,7 @@ export const Dashboard: React.FC = () => {
           throw new Error("CRITICAL: VITE_API_BASE_URL environment variable is not defined!");
         }
 
-        const response = await axios.post(`${API_BASE_URL}/api/v1/predict`, formData, {
+        const response = await axios.post('https://ai-screenshot-organizer.onrender.com/api/v1/predict', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
