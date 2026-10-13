@@ -41,7 +41,13 @@ export const Dashboard: React.FC = () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await axios.post('http://127.0.0.1:8000/api/v1/predict', formData, {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+        if (!API_BASE_URL) {
+          throw new Error("CRITICAL: VITE_API_BASE_URL environment variable is not defined!");
+        }
+
+        const response = await axios.post(`${API_BASE_URL}/api/v1/predict`, formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
 
