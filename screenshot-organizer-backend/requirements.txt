@@ -23,7 +23,6 @@ pydantic-core==2.50.0
 python-dotenv==1.2.4
 python-multipart==0.0.32
 pyyaml==6.0.3
--e file:///Users/macbookpro/Desktop/screenshot-organizer/screenshot-organizer-backend
 setuptools==84.0.0
 slowapi==0.1.10
 starlette==1.7.0
