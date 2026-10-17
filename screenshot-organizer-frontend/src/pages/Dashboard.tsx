@@ -41,14 +41,6 @@ export const Dashboard: React.FC = () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        //const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
-
-        const API_BASE_URL = 'https://ai-screenshot-organizer.onrender.com';
-
-        if (!API_BASE_URL) {
-          throw new Error("CRITICAL: VITE_API_BASE_URL environment variable is not defined!");
-        }
-
         const response = await axios.post('https://ai-screenshot-organizer.onrender.com/api/v1/predict', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
@@ -105,16 +97,17 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto p-6 md:p-8 relative">
+      {/* Toast Notifications */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-3">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl shadow-lg text-white text-sm font-medium transition-all ${
+            className={`flex items-center gap-2 px-4 py-3 rounded-2xl shadow-md text-white text-xs font-medium transition-all ${
               toast.type === 'success'
-                ? 'bg-emerald-600'
+                ? 'bg-[#2C2D30]'
                 : toast.type === 'error'
                 ? 'bg-red-600'
-                : 'bg-indigo-600'
+                : 'bg-[#2C2D30]'
             }`}
           >
             {toast.type === 'success' && <CheckCircle className="w-4 h-4" />}
@@ -134,17 +127,17 @@ export const Dashboard: React.FC = () => {
         onCancel={() => setSelectedFiles([])}
       />
 
-      {/* (Filter Tabs) */}
+      {/* Filter Tabs */}
       <div className="mb-6 flex items-center gap-2 overflow-x-auto pb-2">
-        <Filter className="w-4 h-4 text-slate-500 shrink-0 ml-1 mr-2" />
+        <Filter className="w-4 h-4 text-[#706E6B] shrink-0 ml-1 mr-2" />
         {categories.map((cat) => (
           <button
             key={cat}
             onClick={() => setActiveFilter(cat)}
-            className={`text-xs px-3.5 py-2 rounded-xl font-medium transition-all whitespace-nowrap shadow-sm ${
+            className={`text-xs px-3.5 py-2 rounded-xl font-medium transition-all whitespace-nowrap shadow-2xs ${
               activeFilter === cat
-                ? 'bg-indigo-600 text-white shadow-indigo-200'
-                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                ? 'bg-[#2C2D30] text-white shadow-xs'
+                : 'bg-white text-[#555350] border border-[#EAE8E4] hover:bg-[#FBFBFA]'
             }`}
           >
             {cat} {cat === 'All' ? `(${items.length})` : `(${items.filter(i => i.userFolder === cat).length})`}
@@ -152,19 +145,18 @@ export const Dashboard: React.FC = () => {
         ))}
       </div>
 
-      {/* List Sections & Export Button*/}
+      {/* List Sections & Export Button */}
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold flex items-center gap-2 text-slate-800">
-            <Folder className="w-6 h-6 text-indigo-600" /> Organized Images ({filteredItems.length})
+          <h2 className="text-lg font-semibold flex items-center gap-2 text-[#1A1A1A] tracking-tight">
+            <Folder className="w-5 h-5 text-[#2C2D30]" /> Organized Images ({filteredItems.length})
           </h2>
           
-          {/* Modular Export Button */}
           <ExportButton items={filteredItems} onToast={addToast} />
         </div>
 
         {filteredItems.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 shadow-sm">
+          <div className="bg-white rounded-3xl border border-[#EAE8E4] p-12 text-center text-[#8C8985] text-xs shadow-2xs">
             {items.length === 0 
               ? "No images uploaded yet. Upload screenshots above to start AI organization!" 
               : "No images found in this folder."}
